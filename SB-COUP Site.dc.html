@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,600;0,700;1,400&amp;family=Russo+One&amp;display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #0b0906; }
+  * { box-sizing: border-box; }
+  a { color: #ffb43c; text-decoration: none; }
+  a:hover { color: #fff0d0; }
+  @keyframes blk { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }
+  @keyframes rise { from { opacity:0; transform:translateY(18px) } to { opacity:1; transform:none } }
+  @keyframes fadein { from { opacity:0 } to { opacity:1 } }
+  @keyframes typein { from { clip-path:inset(0 100% 0 0) } to { clip-path:inset(0 -2px 0 0) } }
+  @keyframes crtline { 0% { transform:scaleX(.15) scaleY(.003); opacity:0 } 10% { transform:scaleX(1) scaleY(.003); opacity:1 } 45% { transform:scaleX(1) scaleY(.012); opacity:1 } 100% { transform:scaleX(1) scaleY(1); opacity:0 } }
+  @keyframes crtglow { 0% { opacity:0 } 18% { opacity:.9 } 100% { opacity:0 } }
+  @keyframes crtwake { 0%, 30% { opacity:0 } 100% { opacity:1 } }
+  @keyframes flick { 0%, 100% { opacity: .96 } 47% { opacity: .92 } 62% { opacity: 1 } }
+  ::selection { background: #ffb43c; color: #0b0906; }
+</style>
+</helmet>
+
+<div style="background: #0b0906; color: #e8dcc6; font-family: 'IBM Plex Mono', ui-monospace, monospace; min-height: 100vh; overflow-x: hidden">
+
+  <audio id="sfx-hum" src="uploads/hum.mp3" preload="auto" style="display: none"></audio>
+  <audio id="sfx-bip" src="uploads/bip-bb4fcf86.mp3" preload="auto" style="display: none"></audio>
+  <audio id="sfx-hover" src="uploads/Hover_2.wav" preload="auto" style="display: none"></audio>
+  <audio id="sfx-click" src="uploads/Button_3.wav" preload="auto" style="display: none"></audio>
+
+  <div style="position: fixed; inset: 0; z-index: 100; background: #070604; display: {{ overlayVis }}; opacity: {{ overlayOpacity }}; transition: opacity .8s ease">
+    <div style="position:absolute; inset:0; display:{{ promptVis }}; align-items:center; justify-content:center; flex-direction:column; gap:20px;">
+      <div style="font-size:11px; letter-spacing:.28em; color:#6a5c48;">TERMINAL 7 — STANDBY</div>
+      <div style="font-size:clamp(13px,1.7vw,19px); letter-spacing:.26em; color:#ffb000; text-shadow:0 0 14px rgba(255,150,0,.5); animation:blk 1.15s steps(1) infinite;">PRESS ANY KEY</div>
+    </div>
+    <div style="position:absolute; inset:0; background:radial-gradient(ellipse at center, rgba(255,176,0,.09) 0%, rgba(0,0,0,0) 70%); pointer-events:none; animation:crtwake 2.2s ease-out both; display:{{ crtVis }};"></div>
+    <div style="position:absolute; inset:0; pointer-events:none; background:linear-gradient(to bottom, rgba(255,214,140,.05), rgba(255,190,90,.55) 48%, rgba(255,214,140,.05)); animation:crtline 1.5s cubic-bezier(.16,.9,.2,1) both; display:{{ crtVis }};"></div>
+    <div style="position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse at center, rgba(255,200,120,.35) 0%, rgba(0,0,0,0) 60%); animation:crtglow 1.7s ease-out both; display:{{ crtVis }};"></div>
+    <div style="position:absolute; inset:0; padding:clamp(20px,5vw,64px); overflow:hidden; display:{{ crtFlex }}; flex-direction:column; justify-content:flex-end; animation:flick 4s infinite;">
+      <div style="font-size:clamp(11px,1.35vw,15px); line-height:1.75; letter-spacing:.02em; text-shadow:0 0 12px rgba(255,150,0,.45); animation:crtwake 2.4s ease-out both;">
+        <sc-for list="{{ lines }}" as="l" hint-placeholder-count="6">
+          <div style="white-space:pre-wrap; color:{{ l.color }}; font-weight:{{ l.weight }}; letter-spacing:{{ l.ls }}; padding-top:{{ l.gap }};">{{ l.text }}</div>
+        </sc-for>
+        <div style="white-space:pre-wrap; color:#ffb000;">{{ cur }}<span style="display:inline-block; width:.62em; height:1.05em; background:#ffb000; vertical-align:-2px; animation:blk 1s steps(1) infinite;"></span></div>
+      </div>
+    </div>
+    <div style="position:absolute; inset:0; pointer-events:none; background:repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,.32) 3px, rgba(0,0,0,.32) 4px); mix-blend-mode:multiply;"></div>
+    <div style="position:absolute; inset:0; pointer-events:none; box-shadow:inset 0 0 180px 60px rgba(0,0,0,.85);"></div>
+    <button onClick="{{ skip }}" style="position:absolute; top:20px; right:20px; z-index:2; background:transparent; border:1px solid rgba(255,176,0,.4); color:#ffb000; font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:.18em; padding:10px 14px; cursor:pointer;" style-hover="background:rgba(255,176,0,.14);">SKIP ⏎</button>
+  </div>
+
+  <div style="position: fixed; inset: 0; z-index: 1; pointer-events: none; display: flex; justify-content: center">
+    <div style="width: 100%; max-width: 1180px; height: 100%; margin: 0 clamp(16px,4vw,40px); border-left: 1px solid rgba(255,176,0,.085); border-right: 1px solid rgba(255,176,0,.085); background-image: linear-gradient(to right, rgba(255,176,0,.085) 0px, rgba(255,176,0,.085) 1px, rgba(0,0,0,0) 1px); background-size: calc(100% / 6) 100%"></div>
+  </div>
+  <div style="position: fixed; inset: 0; z-index: 90; pointer-events: none; background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 3px, rgba(0,0,0,.14) 4px); opacity: {{ scanOn }}; top: 0px"></div>
+
+  <div style="border-bottom: 1px solid rgba(255,176,0,.22); background: #0b0906; position: sticky; top: 0; z-index: 80">
+    <div style="max-width:1180px; margin:0 auto; padding:12px clamp(16px,4vw,40px); display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <span style="font-family:'Russo One', sans-serif; font-weight:700; font-size:19px; letter-spacing:.14em; color:#ffb43c;">SB-COUP</span>
+        <a href="#f01" onClick="{{ toggleSound }}" style="font-size:10px; letter-spacing:.2em; color:#7d7060;" style-hover="color:#ffb43c;">{{ soundLabel }}</a>
+      </div>
+      <div style="display:flex; align-items:center; gap:clamp(14px,2.4vw,30px); font-size:11px; letter-spacing:.16em; color:#a89a86;">
+        <a href="#f01">01 THE GAME</a>
+        <a href="#f02">02 SETTING</a>
+        <a href="#f03">03 ARCHIVE</a>
+        <a href="#f04">04 CONTENTS</a>
+        <a href="#f05" style="color:#0b0906; background:#ffb000; padding:9px 14px; letter-spacing:.16em;">DOWNLOAD</a>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width: 1180px; margin: 0 auto; padding: 0 clamp(16px,4vw,40px) 120px; position: relative; z-index: 2">
+
+    <section style="position: relative; z-index: 0; padding: clamp(48px,9vw,110px) 0 clamp(40px,7vw,80px); border-bottom: 1px solid rgba(255,176,0,.16); display:flex; flex-direction:column; min-height:min(88vh, 900px)">
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:34px;">
+        <span style="font-size:10px; letter-spacing:.24em; color:#7d7060; {{ rBadge }}">VERSION 2.2</span>
+      </div>
+      <h1 style="font-family:'Russo One', sans-serif; font-weight:700; font-size:clamp(72px,16.5vw,230px); line-height:.86; white-space:nowrap; letter-spacing:-.02em; margin:0 0 18px; color:#f4e9d4; text-transform:uppercase; {{ rTitle }}">SB-COUP</h1>
+      <p style="font-size:clamp(13px,1.7vw,20px); letter-spacing:.16em; color:#a89a86; margin:0 0 30px; line-height:1.5; {{ rSub }}">SOVIET BUREAU OF CRYPTIC OCCURRENCES &amp; UNKNOWN PHENOMENONS</p>
+      
+      <p style="max-width:660px; font-size:clamp(15px,1.5vw,19px); line-height:1.65; color:#c4b7a2; text-wrap:pretty; margin:0 0 14px; {{ rLead }}">An alternative cold war tabletop RPG inspired by the SCP foundation. You are an Agent of the Soviet Bureau of Cryptic Occurrences and Unknown Phenomenons. Your job is to protect the motherland from darkness. As to your pension... It is <span style="background: rgb(255, 176, 0); color: rgb(255, 176, 0); padding: 0px 6px; border-radius: 1px;">theoretical</span>.</p>
+      <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-top:auto; padding-top:48px; {{ rCta }}">
+        <a href="#f05" style="background:#ffb000; color:#0b0906; font-weight:700; font-size:13px; letter-spacing:.16em; padding:17px 30px;">DOWNLOAD THE DEMO</a>
+        <a href="#f01" style="border:1px solid rgba(255,176,0,.4); color:#ffb43c; font-size:13px; letter-spacing:.16em; padding:16px 26px;">READ THE BRIEFING</a>
+      </div>
+    </section>
+
+    <section id="f01" style="position:relative; z-index:0; padding:clamp(48px,8vw,100px) 0; border-bottom:1px solid rgba(255,176,0,.16); display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:clamp(30px,5vw,70px); {{ rS1 }}">
+      <div style="position:absolute; left:-7px; top:-7px; width:13px; height:13px; background-image:linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)),linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)); background-size:13px 1px, 1px 13px; background-position:center; background-repeat:no-repeat; pointer-events:none;"></div>
+      <div style="position:absolute; right:-7px; top:-7px; width:13px; height:13px; background-image:linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)),linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)); background-size:13px 1px, 1px 13px; background-position:center; background-repeat:no-repeat; pointer-events:none;"></div>
+      <div>
+        <div style="font-size:11px; letter-spacing:.24em; color:#ffb000; margin-bottom:18px;">01 — THE GAME</div>
+        <h2 style="font-family:'Russo One', sans-serif; font-weight:600; font-size:clamp(26px,3.4vw,44px); line-height:1.05; margin:0 0 22px; color:#f4e9d4; text-transform:uppercase;">A GAME ABOUT STUDYING THAT WHICH DOES NOT WANT TO BE UNDERSTOOD</h2>
+        <p style="font-size:15px; line-height:1.75; color:#c4b7a2; text-wrap:pretty; margin:0 0 16px;">In SB-COUP, the Administrator (Your usual game master) writes a Scene and runs it.<br>Everyone else play as Agents: Soldiers and scientists sent into madness by a bureaucratic organization that could not care less for their fates.<br>Scenes can swing from political spy intrigue to surreal horror. Let your imagination loose. Only&nbsp;<span style="background: rgb(255, 176, 0); color: rgb(255, 176, 0); padding: 0px 6px; width: 107px; height: 20px;">████████</span><span style="padding: 0px 6px; width: 107px; height: 20px; color: rgb(196, 183, 162); background-color: rgba(255, 176, 0, 0);">is the limit !</span></p>
+        
+        <p style="font-size:13px; line-height:1.75; color:#7d7060; margin:0;">Note: A Session 0 is strongly recommended. SB-COUP, through its horror aspects, can be triggering for certain people. It is therefore essential to set boundaries together as to what might be described by The Administrator and what themes might be explored.</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:18px;">
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:14px;">
+          <div style="border:1px solid rgba(255,176,0,.2); padding:16px;">
+            <div style="font-family:'Russo One', sans-serif; font-size:26px; color:#ffb43c;">D6</div>
+            <div style="font-size:11px; letter-spacing:.1em; color:#7d7060; line-height:1.5;">ONLY DICE YOU NEED</div>
+          </div>
+          <div style="border:1px solid rgba(255,176,0,.2); padding:16px;">
+            <div style="font-family:'Russo One', sans-serif; font-size:26px; color:#ffb43c;">6</div>
+            <div style="font-size:11px; letter-spacing:.1em; color:#7d7060; line-height:1.5;">AGENT CLASSES</div>
+          </div>
+          <div style="border:1px solid rgba(255,176,0,.2); padding:16px;">
+            <div style="font-family:'Russo One', sans-serif; font-size:26px; color:#ffb43c;">15</div>
+            <div style="font-size:11px; letter-spacing:.1em; color:#7d7060; line-height:1.5;">ANOMALY FIELDS</div>
+          </div>
+        </div>
+        <div style="border:1px solid rgba(255,176,0,.2); padding:26px; flex:1; display:flex; flex-direction:column; justify-content:center;">
+          <div style="font-size:10px; letter-spacing:.22em; color:#ffb000; margin-bottom:12px;">THE ROLL</div>
+          <p style="font-size:13px; line-height:1.7; color:#a89a86; margin:0;">SB-COUP game system is heavily inspired by the zero day system. As such, it is played with 6 sided dices. Please be sure to have those before starting a game.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="f02" style="position:relative; z-index:0; padding:clamp(48px,8vw,100px) 0; border-bottom:1px solid rgba(255,176,0,.16); {{ rS2 }}">
+      <div style="position:absolute; left:-7px; top:-7px; width:13px; height:13px; background-image:linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)),linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)); background-size:13px 1px, 1px 13px; background-position:center; background-repeat:no-repeat; pointer-events:none;"></div>
+      <div style="position:absolute; right:-7px; top:-7px; width:13px; height:13px; background-image:linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)),linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)); background-size:13px 1px, 1px 13px; background-position:center; background-repeat:no-repeat; pointer-events:none;"></div>
+      <div style="font-size:11px; letter-spacing:.24em; color:#ffb000; margin-bottom:18px;">02 — SETTING</div>
+      <h2 style="font-family:'Russo One', sans-serif; font-weight:600; font-size:clamp(26px,3.4vw,44px); line-height:1.05; margin:0 0 24px; max-width:820px; color:#f4e9d4; text-transform:uppercase;">AN ALTERNATE SOVIET UNION WHERE REALITY IS AS STABLE AS THE SPIRIT.</h2>
+      <blockquote style="margin:0 0 48px; border-left:2px solid #ffb000; padding:6px 0 6px 26px; max-width:720px;">
+        <p style="font-family:'Russo One', sans-serif; font-weight:400; font-size:clamp(18px,2.2vw,26px); line-height:1.4; color:#f4e9d4; margin:0 0 14px;">When They told me that my talents were wasted in the Kremlin. I did not understand.<br>When they told me my work on DNA was only child’s play. I did not understand.<br>When they told me I was but pretending to be a god. I did not understand.<br>But I do know. I have seen gods.<br>And they hate us.</p>
+        <cite style="font-size:12px; letter-spacing:.14em; color:#7d7060; font-style:normal;">DR KATARINA MIESCHER — RESEARCHER</cite>
+      </blockquote>
+      <div style="max-width:700px; font-size:15px; line-height:1.75; color:#c4b7a2; text-wrap:pretty; margin:0;">SB-COUP takes place in an alternate Soviet Union filled with unforgiving paranormal entities. In order to protect the population from those Anomalies, secret groups dedicated to their study, containment and neutralization were founded. One of them is The Soviet Bureau of Cryptic Occurrences and Unknown Phenomenons: The SB-COUP<br><br><div>This project began in the summer of 2023. It started as a few notes inspired by art pieces such as Stalker, Control, House of Leaves, and of course the SCP Foundation.</div><div>Two years later, the game is now fully playable.</div></div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:14px; margin-bottom:56px;">
+        
+        
+        
+        
+        
+      </div>
+
+      
+    </section>
+
+    <section id="f03" style="position:relative; z-index:0; padding:clamp(48px,8vw,100px) 0; border-bottom:1px solid rgba(255,176,0,.16); {{ rS3 }}">
+      <div style="position:absolute; left:-7px; top:-7px; width:13px; height:13px; background-image:linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)),linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)); background-size:13px 1px, 1px 13px; background-position:center; background-repeat:no-repeat; pointer-events:none;"></div>
+      <div style="position:absolute; right:-7px; top:-7px; width:13px; height:13px; background-image:linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)),linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)); background-size:13px 1px, 1px 13px; background-position:center; background-repeat:no-repeat; pointer-events:none;"></div>
+      <div style="font-size:11px; letter-spacing:.24em; color:#ffb000; margin-bottom:18px;">03 — ARCHIVE</div>
+      <h2 style="font-family:'Russo One', sans-serif; font-weight:600; font-size:clamp(26px,3.4vw,44px); line-height:1.05; margin:0 0 34px; color:#f4e9d4; text-transform:uppercase;">PHOTOGRAPHIC EVIDENCE</h2>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:18px;">
+        <div style="grid-column:span 2; min-width:0;">
+          <div style="aspect-ratio:16/9; background:repeating-linear-gradient(135deg, #16120c 0px, #16120c 7px, #1d1811 7px, #1d1811 14px); border:1px solid rgba(255,176,0,.2); overflow:hidden;">
+            <img src="uploads/5.png" alt="EXH. 01" style="width:100%; height:100%; object-fit:cover; display:block;">
+          </div>
+          <div style="font-size:11px; letter-spacing:.12em; color:#7d7060; padding-top:10px;">EXH. 01 — CONTAINMENT SITE ████</div>
+        </div>
+        <div>
+          <div style="aspect-ratio:3/4; background:repeating-linear-gradient(135deg, #16120c 0px, #16120c 7px, #1d1811 7px, #1d1811 14px); border:1px solid rgba(255,176,0,.2); overflow:hidden;">
+            <img src="uploads/2.png" alt="EXH. 02 — FIELD AGENT, STANDARD ISSUE" style="width:100%; height:100%; object-fit:contain; display:block;">
+          </div>
+          <div style="font-size:11px; letter-spacing:.12em; color:#7d7060; padding-top:10px;">EXH. 02 — TASK FORCE</div>
+        </div>
+        <div>
+          <div style="aspect-ratio:3/4; background:repeating-linear-gradient(135deg, #16120c 0px, #16120c 7px, #1d1811 7px, #1d1811 14px); border:1px solid rgba(255,176,0,.2); overflow:hidden;">
+            <img src="uploads/3-c87a3818.png" alt="EXH. 03 — RESEARCH PERSONNEL" style="width:100%; height:100%; object-fit:contain; display:block;">
+          </div>
+          <div style="font-size:11px; letter-spacing:.12em; color:#7d7060; padding-top:10px;">EXH. 03 — RESEARCH PERSONNEL</div>
+        </div>
+        <div>
+          <div style="aspect-ratio:4/3; background:repeating-linear-gradient(135deg, #16120c 0px, #16120c 7px, #1d1811 7px, #1d1811 14px); border:1px solid rgba(255,176,0,.2); overflow:hidden;">
+            <img src="uploads/1.png" alt="EXH. 04 — EVACUATED SETTLEMENT" style="width:100%; height:100%; object-fit:cover; display:block;">
+          </div>
+          <div style="font-size:11px; letter-spacing:.12em; color:#7d7060; padding-top:10px;">EXH. 04 — EVACUATED AREA</div>
+        </div>
+        <div>
+          <div style="aspect-ratio:16/9; background:repeating-linear-gradient(135deg, #16120c 0px, #16120c 7px, #1d1811 7px, #1d1811 14px); border:1px solid rgba(255,176,0,.2); overflow:hidden;">
+            <img src="uploads/4.png" alt="EXH. 05 — SUBJECT ██-7, UNCONTAINED" style="width:100%; height:100%; object-fit:cover; display:block;">
+          </div>
+          <div style="font-size:11px; letter-spacing:.12em; color:#7d7060; padding-top:10px;">EXH. 05 — ANOMALY ██, UNCONTAINED</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="f04" style="position:relative; z-index:0; padding:clamp(48px,8vw,100px) 0; border-bottom:1px solid rgba(255,176,0,.16); display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:clamp(30px,5vw,70px); {{ rS4 }}">
+      <div style="position:absolute; left:-7px; top:-7px; width:13px; height:13px; background-image:linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)),linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)); background-size:13px 1px, 1px 13px; background-position:center; background-repeat:no-repeat; pointer-events:none;"></div>
+      <div style="position:absolute; right:-7px; top:-7px; width:13px; height:13px; background-image:linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)),linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)); background-size:13px 1px, 1px 13px; background-position:center; background-repeat:no-repeat; pointer-events:none;"></div>
+      <div>
+        <div style="font-size:11px; letter-spacing:.24em; color:#ffb000; margin-bottom:18px;">04 — CONTENTS</div>
+        <h2 style="font-family:'Russo One', sans-serif; font-weight:600; font-size:clamp(26px,3.4vw,44px); line-height:1.05; margin:0 0 22px; color:#f4e9d4; text-transform:uppercase;">60 PAGES, ONE PDF</h2>
+        <p style="font-size:15px; line-height:1.75; color:#c4b7a2; text-wrap:pretty; margin:0;">Everything needed to start playing: full rules, six classes, fifteen anomaly expertises, guidance for writing Scenes, NPCs and anomalies of your own.<br>Plus printable anomaly and character sheets.</p>
+      </div>
+      <div style="display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; gap:20px; padding:14px 0; border-top:1px solid rgba(255,176,0,.16); font-size:14px;"><span style="color:#e8dcc6;">Core rules &amp; the D6 system</span></div>
+        <div style="display:flex; justify-content:space-between; gap:20px; padding:14px 0; border-top:1px solid rgba(255,176,0,.16); font-size:14px;"><span style="color:#e8dcc6;">The lore, factions &amp; timeline</span></div>
+        <div style="display:flex; justify-content:space-between; gap:20px; padding:14px 0; border-top:1px solid rgba(255,176,0,.16); font-size:14px;"><span style="color: rgb(232, 220, 198);">How to make an agent</span></div>
+        <div style="display:flex; justify-content:space-between; gap:20px; padding:14px 0; border-top:1px solid rgba(255,176,0,.16); font-size:14px;"><span style="color:#e8dcc6;">Insanity &amp; levelling up</span></div>
+        <div style="display:flex; justify-content:space-between; gap:20px; padding:14px 0; border-top:1px solid rgba(255,176,0,.16); font-size:14px;"><span style="color:#e8dcc6;">Combat, equipment &amp; weapons</span></div>
+        <div style="display:flex; justify-content:space-between; gap:20px; padding:14px 0; border-top:1px solid rgba(255,176,0,.16); font-size:14px;"><span style="color:#e8dcc6;">Designing Scenes, NPCs &amp; anomalies</span></div>
+        <div style="display:flex; justify-content:space-between; gap:20px; padding:14px 0; border-top:1px solid rgba(255,176,0,.16); font-size:14px;"><span style="color:#e8dcc6;">Six classes, from Investigator to Vanguard</span></div>
+        <div style="display:flex; justify-content:space-between; gap:20px; padding:14px 0; border-top:1px solid rgba(255,176,0,.16); border-bottom:1px solid rgba(255,176,0,.16); font-size:14px;"><span style="color:#e8dcc6;">Fifteen anomaly expertises + sheets</span></div>
+      </div>
+    </section>
+
+    <section id="f05" style="position:relative; z-index:0; padding:clamp(48px,8vw,100px) 0; {{ rS5 }}">
+      <div style="position:absolute; left:-7px; top:-7px; width:13px; height:13px; background-image:linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)),linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)); background-size:13px 1px, 1px 13px; background-position:center; background-repeat:no-repeat; pointer-events:none;"></div>
+      <div style="position:absolute; right:-7px; top:-7px; width:13px; height:13px; background-image:linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)),linear-gradient(rgba(255,176,0,.45),rgba(255,176,0,.45)); background-size:13px 1px, 1px 13px; background-position:center; background-repeat:no-repeat; pointer-events:none;"></div>
+      <div style="border:1px solid rgba(255,176,0,.32); padding:clamp(28px,5vw,60px); display:flex; flex-direction:column;">
+        <div>
+          <div style="font-size:11px; letter-spacing:.24em; color:#ffb000; margin-bottom:16px;">05 — DOWNLOAD</div>
+          <h2 style="font-family:'Russo One', sans-serif; font-weight:700; font-size:clamp(28px,3.6vw,46px); line-height:1.02; margin:0 0 18px; color:#f4e9d4; text-transform:uppercase;">GET YOUR COPY</h2>
+          <p style="font-size:15px; line-height:1.75; color:#c4b7a2; text-wrap:pretty; margin:0 0 28px;">SB-COUP v2.2<br>Downloadable PDF, delivered immediately. Print it, annotate it, destroy it. Free updates as the Bureau declassifies more.</p>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:clamp(28px,4vw,60px); align-items:start;">
+          <div>
+          <div style="border:1px solid #3a2e1c; background:#0e0b08; padding:10px; max-width:574px;">
+            <div style="font-size:10px; letter-spacing:.22em; color:#7d7060; padding:2px 4px 10px;">DISTRIBUTION CHANNEL — ITCH.IO</div>
+            <iframe frameborder="0" src="https://itch.io/embed/3986311?bg_color=0B0906&amp;fg_color=C4B7A2&amp;link_color=FFB000&amp;border_color=3A2E1C" width="552" height="167" style="display:block; max-width:100%; border:0;" title="SB-COUP on itch.io"><a href="https://maxime-nourry.itch.io/sb-coup">SB-COUP by Maxime Nourry</a></iframe>
+          </div>
+          <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:center; padding-top:18px;">
+            <a href="https://maxime-nourry.itch.io/sb-coup" target="_blank" rel="noopener" style="background:#ffb000; color:#0b0906; font-weight:700; font-size:13px; letter-spacing:.16em; padding:17px 30px;">DOWNLOAD THE DEMO</a>
+            <span style="font-size:12px; letter-spacing:.1em; color:#7d7060;">FREE · PDF</span>
+          </div>
+          <div style="font-size:12px; letter-spacing:.1em; color:#7d7060; padding-top:16px;">OR OPEN THE FULL LISTING — <a href="https://maxime-nourry.itch.io/sb-coup" target="_blank" rel="noopener">MAXIME-NOURRY.ITCH.IO/SB-COUP</a></div>
+        </div>
+          <div style="border:1px solid rgba(255,176,0,.2); padding:24px; background:#0e0b08; justify-self:end; width:100%; max-width:360px;">
+          <div style="font-size:10px; letter-spacing:.22em; color:#c9553f; margin-bottom:18px;">Content</div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; font-size:13px; border-bottom:1px dotted rgba(255,176,0,.18);"><span style="color: rgb(125, 112, 96);">FORMAT</span><span style="color: rgb(232, 220, 198);">Printable PDF</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; font-size:13px; border-bottom:1px dotted rgba(255,176,0,.18);"><span style="color:#7d7060;">PAGES</span><span style="color:#e8dcc6;">around 60</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; font-size:13px; border-bottom:1px dotted rgba(255,176,0,.18);"><span style="color:#7d7060;">VERSION</span><span style="color:#e8dcc6;">2.2</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; font-size:13px; border-bottom:1px dotted rgba(255,176,0,.18);"><span style="color:#7d7060;">PLAYERS</span><span style="color:#e8dcc6;">2–6 + ADMIN</span></div>
+          <div style="display:flex; justify-content:space-between; padding:9px 0; font-size:13px;"><span style="color:#7d7060;">DICE</span><span style="color:#e8dcc6;">D6 ONLY</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div style="border-top:1px solid rgba(255,176,0,.16); padding:34px clamp(16px,4vw,40px); {{ rFoot }}">
+    <div style="max-width:1180px; margin:0 auto; display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; font-size:11px; letter-spacing:.14em; color:#6d6252;">
+      <span>SB-COUP · MAXIME NOURRY &amp; VINCENT ZANADA · V2.2</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;skipBoot&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Terminal&quot;},&quot;typeSpeed&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:24,&quot;min&quot;:4,&quot;max&quot;:60,&quot;step&quot;:2,&quot;unit&quot;:&quot;ms/char&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Terminal&quot;},&quot;scanlines&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Terminal&quot;}}">
+class Component extends DCLogic {
+  state = { shown: [], cur: '', booted: false, gone: false, muted: false, armed: false, pressed: false, revealed: false };
+
+  reveal(kind, delay, dur, steps) {
+    if (this.props.skipBoot) return '';
+    if (!this.state.revealed) return 'opacity:0;';
+    const t = kind === 'type' ? `typein ${dur}s steps(${steps}, end)` : `${kind} ${dur}s cubic-bezier(.2,.7,.2,1)`;
+    return `animation:${t} ${delay}s both;`;
+  }
+
+  script() {
+    const A = '#ffb000', D = '#8a7a63', W = '#c9553f', G = '#ffd77a';
+    return [
+      { t: 'TERMINAL 7 — ROM 2.2', c: A, w: 700, ls: '.14em', pause: 260 },
+      { t: '64K RAM SYSTEM  ·  49152 BYTES FREE', c: D, pause: 200 },
+      { t: 'LINK: MOSCOW CENTRAL ................ OK', c: D, gap: '0px', pause: 420 },
+      { t: '', c: D, pause: 60 },
+      { t: 'SOVIET BUREAU OF CRYPTIC OCCURRENCES', c: G, w: 600, pause: 80 },
+      { t: 'AND UNKNOWN PHENOMENONS', c: G, w: 600, pause: 380 },
+      { t: '', c: D, pause: 60 },
+      { t: 'LOGIN: AGENT ████████', c: A, pause: 340 },
+      { t: 'PASSCODE: ●●●●●●●●●●●', c: A, pause: 520 },
+      { t: '', c: D, pause: 60 },
+      { t: 'CLEARANCE VERIFICATION THROUGH MEMETIC AGENT ... ', c: D, pct: true, pause: 320 },
+      { t: 'WARNING: THIS FILE CONTAINS REDACTED MATERIAL.', c: W, pause: 240 },
+      { t: 'DISCLOSURE OUTSIDE OF THIS TERMINAL WILL BE', c: W, pause: 60 },
+      { t: 'CONSIDERED TREASON.', c: W, pause: 420 },
+      { t: '', c: D, pause: 60 },
+      { t: 'OPENING FILE SB-COUP v2.2 ...', c: D, pause: 460 },
+      { t: '>> ACCESS GRANTED', c: A, w: 700, ls: '.2em', pause: 800 }
+    ];
+  }
+
+  initAudio() {
+    this.start = new Audio('uploads/freesound_community-pc-start-63725.mp3');
+    this.start.volume = 0.495;
+    this.start.addEventListener('ended', () => this.playHum());
+    this.loadHum();
+  }
+
+  async grab(id) {
+    // read the src off a real <audio> tag: the standalone export turns it into a
+    // data: URI, which fetch() can read even from file://
+    const el = document.getElementById(id);
+    if (!el) return null;
+    const res = await fetch(el.getAttribute('src') || el.src);
+    return this.ctx.decodeAudioData(await res.arrayBuffer());
+  }
+
+  async loadHum() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new Ctx();
+      this.humGain = this.ctx.createGain();
+      this.humGain.gain.value = 0.495;
+      this.humGain.connect(this.ctx.destination);
+      this.bipGain = this.ctx.createGain();
+      this.bipGain.gain.value = 0.32;
+      this.bipGain.connect(this.ctx.destination);
+      this.humBuf = await this.grab('sfx-hum');
+      if (this._humWanted) this.playHum();
+      this.loadUi();
+      this.bipBuf = await this.grab('sfx-bip');
+    } catch (err) {}
+  }
+
+  async loadUi() {
+    try {
+      this.uiGain = this.ctx.createGain();
+      this.uiGain.gain.value = 0.45;
+      this.uiGain.connect(this.ctx.destination);
+      this.hoverBuf = await this.grab('sfx-hover');
+      this.clickBuf = await this.grab('sfx-click');
+    } catch (err) {}
+  }
+
+  ui = kind => {
+    const buf = kind === 'click' ? this.clickBuf : this.hoverBuf;
+    if (!buf || this.state.muted || !this.ctx) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    const n = this.ctx.createBufferSource();
+    n.buffer = buf;
+    n.connect(this.uiGain);
+    n.start();
+  };
+
+  onHover = () => this.ui('hover');
+  onClick = () => this.ui('click');
+
+  bindUi() {
+    if (this._bound || !this._root) return;
+    this._bound = true;
+    this._root.addEventListener('pointerover', e => {
+      const t = e.target.closest('a, button');
+      if (t && t !== this._last) { this._last = t; this.onHover(); }
+    });
+    this._root.addEventListener('pointerout', e => { if (e.target.closest('a, button') === this._last) this._last = null; });
+    this._root.addEventListener('pointerdown', e => { if (e.target.closest('a, button')) this.onClick(); });
+  }
+
+  playHum() {
+    this._humWanted = true;
+    if (!this._m || this.state.muted || !this.humBuf || this.humNode) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    const n = this.ctx.createBufferSource();
+    n.buffer = this.humBuf;
+    n.loop = true;
+    n.connect(this.humGain);
+    n.start();
+    this.humNode = n;
+  }
+
+  bip() {
+    if (!this.bipBuf || this.state.muted || !this.ctx) return;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    const n = this.ctx.createBufferSource();
+    n.buffer = this.bipBuf;
+    n.connect(this.bipGain);
+    n.start();
+  }
+
+  stopHum() {
+    if (!this.humNode) return;
+    try { this.humNode.stop(); } catch (err) {}
+    this.humNode.disconnect();
+    this.humNode = null;
+  }
+
+  playStart() {
+    if (this.state.muted) return;
+    const p = this.start.play();
+    if (p && p.catch) p.catch(() => {
+      this._unlock = () => { this.start.play().catch(() => {}); this.dropUnlock(); };
+      window.addEventListener('pointerdown', this._unlock, { once: true });
+      window.addEventListener('keydown', this._unlock, { once: true });
+    });
+  }
+
+  dropUnlock() {
+    if (!this._unlock) return;
+    window.removeEventListener('pointerdown', this._unlock);
+    window.removeEventListener('keydown', this._unlock);
+    this._unlock = null;
+  }
+
+  toggleSound = e => {
+    if (e && e.preventDefault) e.preventDefault();
+    const muted = !this.state.muted;
+    this.setState({ muted });
+    try { localStorage.setItem('sbcoup_muted', muted ? '1' : '0'); } catch (err) {}
+    if (muted) { this.start.pause(); this.stopHum(); }
+    else if (this.start.ended || this.state.booted) this.playHum();
+    else this.playStart();
+  };
+
+  componentDidMount() {
+    this._m = true;
+    this._root = document.getElementById('dc-root') || document.body;
+    this.bindUi();
+    let muted = false;
+    try { muted = localStorage.getItem('sbcoup_muted') === '1'; } catch (err) {}
+    this.initAudio();
+    if (muted) this.setState({ muted: true });
+    if (this.props.skipBoot) { this.setState({ booted: true, gone: true }); return; }
+    document.body.style.overflow = 'hidden';
+    this._arm = () => this.arm();
+    window.addEventListener('keydown', this._arm);
+    window.addEventListener('pointerdown', this._arm);
+  }
+
+  arm() {
+    if (this.state.pressed) return;
+    window.removeEventListener('keydown', this._arm);
+    window.removeEventListener('pointerdown', this._arm);
+    this.setState({ pressed: true });
+    this.playStart();
+    setTimeout(() => {
+      if (!this._m) return;
+      this.setState({ armed: true });
+      this._key = () => this.skip();
+      window.addEventListener('keydown', this._key);
+      this.run();
+    }, 1000);
+  }
+
+  componentWillUnmount() {
+    this._m = false;
+    document.body.style.overflow = '';
+    if (this._key) window.removeEventListener('keydown', this._key);
+    this.dropUnlock();
+    if (this._arm) { window.removeEventListener('keydown', this._arm); window.removeEventListener('pointerdown', this._arm); }
+    if (this.start) this.start.pause();
+    this.stopHum();
+    if (this.ctx) this.ctx.close();
+  }
+
+  wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  async run() {
+    const speed = this.props.typeSpeed ?? 16;
+    await this.wait(3300);
+    if (!this._m || this.state.booted) return;
+    for (const l of this.script()) {
+      for (let i = 1; i <= l.t.length; i++) {
+        if (!this._m || this.state.booted) return;
+        this.setState({ cur: l.t.slice(0, i) });
+        if (l.t[i - 1] !== ' ') this.bip();
+        await this.wait(speed);
+      }
+      if (!this._m || this.state.booted) return;
+      if (l.pct) {
+        for (let p = 0; p <= 100; p++) {
+          if (!this._m || this.state.booted) return;
+          this.setState({ cur: l.t + String(p).padStart(3, ' ') + '%' });
+          await this.wait(p % 17 === 0 ? 70 : 14);
+        }
+        this.setState(s => ({ shown: s.shown.concat([{ ...l, t: l.t + '100%' }]), cur: '' }));
+        await this.wait(l.pause || 160);
+        continue;
+      }
+      this.setState(s => ({ shown: s.shown.concat([l]), cur: '' }));
+      await this.wait(l.pause || 160);
+    }
+    if (this._m) this.skip();
+  }
+
+  skip = () => {
+    if (this.state.gone) return;
+    this.setState({ booted: true });
+    document.body.style.overflow = '';
+    if (this._key) window.removeEventListener('keydown', this._key);
+    setTimeout(() => { if (this._m) this.setState({ gone: true }); }, 900);
+    setTimeout(() => { if (this._m) this.setState({ revealed: true }); }, 2100);
+  };
+
+  replay = e => {
+    if (e && e.preventDefault) e.preventDefault();
+    window.scrollTo(0, 0);
+    this.setState({ shown: [], cur: '', booted: false, gone: false, armed: true, pressed: true }, () => {
+      document.body.style.overflow = 'hidden';
+      this._key = () => this.skip();
+      window.addEventListener('keydown', this._key);
+      this.run();
+    });
+  };
+
+  renderVals() {
+    return {
+      lines: this.state.shown.map(l => ({
+        text: l.t || ' ',
+        color: l.c,
+        weight: l.w || 400,
+        ls: l.ls || '.02em',
+        gap: l.gap || '0px'
+      })),
+      cur: this.state.cur,
+      rHeader: this.reveal('fadein', 0, 0.7),
+      rBadge: this.reveal('fadein', 0.5, 0.5),
+      rTitle: this.reveal('type', 0.75, 0.75, 7),
+      rSub: this.reveal('type', 1.6, 1.5, 52),
+      rLead: this.reveal('rise', 3.1, 0.7),
+      rMeta: this.reveal('rise', 3.5, 0.7),
+      rCta: this.reveal('rise', 3.8, 0.7),
+      rS1: this.reveal('rise', 4.2, 0.8),
+      rS2: this.reveal('rise', 4.5, 0.8),
+      rS3: this.reveal('rise', 4.8, 0.8),
+      rS4: this.reveal('rise', 5.1, 0.8),
+      rS5: this.reveal('rise', 5.4, 0.8),
+      rFoot: this.reveal('fadein', 5.8, 0.8),
+      promptVis: this.state.pressed ? 'none' : 'flex',
+      crtVis: this.state.armed ? 'block' : 'none',
+      crtFlex: this.state.armed ? 'flex' : 'none',
+      overlayVis: this.state.gone ? 'none' : 'block',
+      overlayOpacity: this.state.booted ? 0 : 1,
+      scanOn: (this.props.scanlines ?? true) ? 0.55 : 0,
+      skip: this.skip,
+      replay: this.replay,
+      toggleSound: this.toggleSound,
+      soundLabel: this.state.muted ? 'SOUND OFF' : 'SOUND ON'
+    };
+  }
+}
+</script>
+</body>
+</html>
